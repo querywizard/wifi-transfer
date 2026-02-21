@@ -1,3 +1,40 @@
+<?php
+$downloadRoot = __DIR__ . DIRECTORY_SEPARATOR . 'downloads';
+$downloads = [];
+
+if (is_dir($downloadRoot)) {
+    foreach (scandir($downloadRoot) as $file) {
+        if ($file === '.' || $file === '..') continue;
+        $path = $downloadRoot . DIRECTORY_SEPARATOR . $file;
+        if (!is_file($path)) continue;
+        $downloads[] = [
+            'name' => $file,
+            'size' => filesize($path) ?: 0,
+            'mtime' => filemtime($path) ?: 0,
+            'url' => 'downloads/' . rawurlencode($file),
+        ];
+    }
+}
+
+usort($downloads, function($a, $b) {
+    return ($b['mtime'] ?? 0) <=> ($a['mtime'] ?? 0);
+});
+
+function h($v) {
+    return htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
+}
+
+function fmt_size($bytes) {
+    $units = ['B','KB','MB','GB','TB'];
+    $i = 0;
+    while ($bytes >= 1024 && $i < count($units) - 1) {
+        $bytes /= 1024;
+        $i++;
+    }
+    $fmt = $i === 0 ? '%d %s' : '%.1f %s';
+    return sprintf($fmt, $bytes, $units[$i]);
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,6 +54,15 @@
   .muted { color:#666; font-size:.92rem; }
   #status { margin-top:.75rem; background:#fff; padding:.8rem; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.05); word-break:break-word; }
   .grid { display:grid; grid-template-columns: 1fr 1fr; gap:.25rem .75rem; font-size:.92rem; }
+  .downloads-card { margin-top:1rem; }
+  .downloads-card h2 { margin:0 0 .25rem; font-size:1.05rem; }
+  .download-list { list-style:none; padding:0; margin:.5rem 0 0; display:flex; flex-direction:column; gap:.5rem; }
+  .download-item { display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding:.7rem .8rem; border:1px solid #e1e5ec; border-radius:10px; background:linear-gradient(135deg,#f8fbff,#f2f4f8); }
+  .download-info a { color:#1f4b99; font-weight:600; text-decoration:none; }
+  .download-info a:hover { text-decoration:underline; }
+  .download-meta { font-size:.88rem; color:#555; }
+  .pill { padding:.4rem .85rem; border-radius:999px; background:#1f7aec; color:#fff; font-weight:600; text-decoration:none; font-size:.92rem; white-space:nowrap; }
+  .pill:hover { background:#1863c0; }
   @media (max-width:480px){ button{ flex:1; } .row{ flex-direction:column; } .grid{ grid-template-columns:1fr 1fr; } }
 </style>
 </head>
@@ -51,6 +97,26 @@
   </div>
 
   <div id="status"></div>
+
+  <div class="card downloads-card">
+    <h2>Downloads</h2>
+    <div class="muted">Files placed into the <code>downloads</code> folder are listed here.</div>
+    <?php if (empty($downloads)): ?>
+      <p class="muted" style="margin:.75rem 0 0;">No files available yet.</p>
+    <?php else: ?>
+      <ul class="download-list">
+        <?php foreach ($downloads as $file): ?>
+          <li class="download-item">
+            <div class="download-info">
+              <a href="<?= h($file['url']) ?>" download><?= h($file['name']) ?></a>
+              <div class="download-meta"><?= fmt_size($file['size']) ?> • <?= date('Y-m-d H:i', $file['mtime']) ?></div>
+            </div>
+            <a class="pill" href="<?= h($file['url']) ?>" download>Download</a>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+    <?php endif; ?>
+  </div>
 
 <script>
 (() => {
